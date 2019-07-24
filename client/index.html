@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Zombie Apocalypse - a multiplayer game</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <link rel="stylesheet" href="styles/main.css">
+    <link href="https://fonts.googleapis.com/css?family=Press+Start+2P&display=swap&subset=latin-ext" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Permanent+Marker&display=swap" rel="stylesheet">
+  </head>
+  <body>
+
+    <div class="menu" id="menu">
+      <div class="container">
+        <header class="page-header">
+            <h1>Zombie Apocalypse</h1>
+            <p>a multiplayer game</p>
+        </header>
+        
+        <p>Players online: <span id="usersConnected"></span></p>
+
+        <div class="waiting" id="waitingForPlayer">
+          <strong>Waiting for player<span id="waiting-animation">...</span></strong>
+        </div>
+
+        <form class="player-form hide" id="playerForm">
+            <input type="text" id="nick" name="nick" placeholder="Your nick..." required>
+            <input type="submit" value="Play" id="play">
+        </form>
+
+        <div class="credits">
+          <strong>Credits:</strong>
+          <ul class="text-left">
+            <li>Riley Gombart - Survivor and Zombie texture</li>
+          </ul>
+  
+          <strong>Thank you for ideas</strong>
+          <ul class="text-left">
+            <li>Gynvael Coldwind</li>
+            <li>Hubert Mądry</li>
+            <li>Bartosz Gruszczyński</li>
+            <li>Filip Kubacki</li>
+            <li>Wojciech Perliński</li>
+            <li>Karol Waliszewski</li>
+          </ul>
+        </div>
+       
+        <h2 class="text-center">Ranking</h2>
+        <table class="ranking-wrapper" id="ranking">
+          <tr width="100%">
+            <td width="100%"><img src="img/loading.gif" class="loading"></td>
+          </tr>
+        </table>
+      </div>
+      
+      <div class="bottom-row shadow">
+        <ul class="flex-container ul">
+          <li>Made by <a href="https://github.com/Smokolisz" target="_blank" rel="noreferrer noopener">Adam Czwordon</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div id="message" class="message-box">
+      Game Over!
+    </div>
+
+    <button id="playAgain" class="btn play-again">
+      Play again
+    </button>
+
+    <div id="shot"></div>
+    <div id="move"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <!--<script src="https://pixijs.download/v5.1.0/pixi.min.js"></script>-->
+    <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.5.1/pixi.min.js"></script>-->
+    <script src="https://pixijs.download/v4.8.7/pixi.min.js"></script>
+    <script src="src/buzz.min.js"></script>
+    <script src="src/keyboard.js"></script>
+    <script src="src/client.js"></script>
+    <script src="src/nipplejs.js"></script>
+  </body>
+</html>
