@@ -12,7 +12,7 @@ function keyboard(keyCode) {
             key.isDown=true;
             key.isUp=false;
         }
-        event.preventDefault();
+        //event.preventDefault();
     }
 
     key.upHandler=function(event) {
@@ -21,7 +21,7 @@ function keyboard(keyCode) {
             key.isDown=false;
             key.isUp=true;
         }
-        event.preventDefault();
+        //event.preventDefault();
     }
 
     window.addEventListener(
@@ -34,8 +34,14 @@ function keyboard(keyCode) {
     return key;
 }
 
-var left=keyboard(37),
+var left=keyboard(65),
+    up=keyboard(87),
+    right=keyboard(68),
+    down=keyboard(83),
+    spacja=keyboard(32);
+
+/*var left=keyboard(37),
     up=keyboard(38),
     right=keyboard(39),
     down=keyboard(40),
-    spacja=keyboard(32);
+    spacja=keyboard(32);*/

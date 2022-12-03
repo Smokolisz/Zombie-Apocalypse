@@ -1,12 +1,15 @@
+const http = require('http');
+
 class RpsGame {
     
     constructor(p1, p2) {
-        this._players = {
-            "p": [
-                {"sock": p1, "id":0, "speed":3, "hp":10, "rotation":0, "attackSpeed":200, "reload":true, "cords":{"x":450, "y":400}},
-                {"sock": p2, "id":1, "speed":3, "hp":10, "rotation":0, "attackSpeed":200, "reload":true, "cords":{"x":550, "y":400}}
-            ]
-        };
+        this._players = [
+            {"sock": p1, "id":0, "nick":null, "speed":3, "hp":10, "rotation":0, "attackSpeed":200, "reload":true, "cords":{"x":450, "y":400}},
+            {"sock": p2, "id":1, "nick":null, "speed":3, "hp":10, "rotation":0, "attackSpeed":200, "reload":true, "cords":{"x":550, "y":400}}
+        ];
+
+        this._playersLength = this._players.length;
+        this._points = 0;
 
         this._enemies = [];
         this._enemyID = 0;
@@ -19,37 +22,56 @@ class RpsGame {
             "enemies": []
         };
             
-
         
-        this._playersLength = this._players.p.length;
-        this._points = 0;
 
         this._gameWidth = 1000;
         this._gameHeight = 800;
 
-        this._game = true;
+        this._game = false;
 
-        this._initPlayers();
-        this._players.p.forEach((player, idx) => {
+        this._playersReady = 0;
+
+        this._players.forEach((player, idx) => {
+            player.sock.emit('startGame', 1);
+
             player.sock.on('tick', (data) => {
-                if(this._players.p[idx].hp>0) {
+                if(this._players[idx].hp>0) {
                     this._onTick(idx, data);
+                }
+            });
+
+            player.sock.on('joystickMove', (data) => {
+                if(this._players[idx].hp>0) {
+                    this._joystickMove(idx, data);
+                }
+            });
+
+            player.sock.on('nick', (data) => {
+                if(!this._game) {  
+                    this._players[idx].nick = data;
+                    this._playersReady++;
+                    if(this._playersReady>=this._playersLength) {
+                        this._game = true;
+                        this._initPlayers();
+                        this._gameLoop();
+                    }
                 }
             });
         });
 
-        this._gameLoop();
     }
 
     _initPlayers() {
-        this._players.p.forEach((player, playerIndex) => {
+        this._players.forEach((player, playerIndex) => {
             let data = {"urID":playerIndex,"p":[]};
             for(let i=0;i<this._playersLength;i++) {
                 let info = {
-                    "id":this._players.p[i].id, 
+                    "id":this._players[i].id, 
+                    "nick": this._players[i].nick,
+                    "hp": this._players[i].hp,
                     "cords":{
-                        "x":this._players.p[i].cords.x,
-                        "y":this._players.p[i].cords.y
+                        "x":this._players[i].cords.x,
+                        "y":this._players[i].cords.y
                     }
                 };
                 data.p.push(info);
@@ -64,54 +86,52 @@ class RpsGame {
     }
 
     _sendToPlayers() {
-        this._players.p.forEach((player, playerIndex) => {
 
-            let data = {"urID":playerIndex,"p":[], "e":[], "b":[], "del":[], "score":this._points};
+        let data = {"p":[], "e":[], "b":[], "del":[], "score":this._points};
 
-            for(let i=0;i<this._playersLength;i++) {
-                let player = {
-                    "id":this._players.p[i].id,
-                    "hp":this._players.p[i].hp,
-                    "rotation": this._players.p[i].rotation,
-                    "cords":{
-                        "x":this._players.p[i].cords.x,
-                        "y":this._players.p[i].cords.y
-                    }
-                };
-                data.p.push(player);
-            }
+        for(let i=0;i<this._playersLength;i++) {
+            let player = {
+                "id":this._players[i].id,
+                "hp":this._players[i].hp,
+                "r": +this._players[i].rotation.toFixed(2),  //rotation
+                "c":{ //cords
+                    "x": Math.round(this._players[i].cords.x),
+                    "y": Math.round(this._players[i].cords.y)
+                }
+            };
+            data.p.push(player);
+        }
 
+        let enemiesLength = this._enemies.length;
+        for(let i=0;i<enemiesLength;i++) {
+            let enemy = {
+                "id":this._enemies[i].id,
+                "c":{ //cords
+                    "x": Math.round(this._enemies[i].cords.x),
+                    "y": Math.round(this._enemies[i].cords.y)
+                },
+                "d": +this._enemies[i].direction.toFixed(2) //direction
+            };
+            data.e.push(enemy);
+        }
 
-            let enemiesLength = this._enemies.length;
-            for(let i=0;i<enemiesLength;i++) {
-                let enemy = {
-                    "id":this._enemies[i].id,
-                    "speed": this._enemies[i].speed,
-                    "hp": this._enemies[i].hp,
-                    "cords":{
-                        "x": this._enemies[i].cords.x,
-                        "y": this._enemies[i].cords.y
-                    },
-                    "direction": this._enemies[i].direction
-                };
-                data.e.push(enemy);
-            }
+        let bulletsLength = this._bullets.length;
+        for(let i=0;i<bulletsLength;i++) {
+            let bullet = {
+                "id":this._bullets[i].id,
+                "c":{ //cords
+                    "x": Math.round(this._bullets[i].cords.x),
+                    "y": Math.round(this._bullets[i].cords.y)
+                },
+                "d": +this._bullets[i].direction.toFixed(2) //direction
+            };
+            data.b.push(bullet);
+        }
 
-            let bulletsLength = this._bullets.length;
-            for(let i=0;i<bulletsLength;i++) {
-                let bullet = {
-                    "id":this._bullets[i].id,
-                    "cords":{
-                        "x": this._bullets[i].cords.x,
-                        "y": this._bullets[i].cords.y
-                    },
-                    "direction": this._bullets[i].direction
-                };
-                data.b.push(bullet);
-            }
+        data.del.push(this._elToDelete);
 
-            data.del.push(this._elToDelete);
-            
+        this._players.forEach((player, playerIndex) => {
+
             player.sock.emit('gameData', data);
         });
 
@@ -121,38 +141,58 @@ class RpsGame {
 
     _onTick(playerIndex, data) {
         //console.log(data);
+        this._players[playerIndex].rotation = data.r;
 
-        this._players.p[playerIndex].rotation = data.rotation;
-
-        if(data.shot && this._players.p[playerIndex].reload) {
-            this._players.p[playerIndex].reload = false;
+        if(data.shot && this._players[playerIndex].reload) {
+            this._players[playerIndex].reload = false;
 
             let _this = this;
             setTimeout(() => {
-                _this._players.p[playerIndex].reload = true;
-            }, this._players.p[playerIndex].attackSpeed);
+                _this._players[playerIndex].reload = true;
+            }, this._players[playerIndex].attackSpeed);
 
-            this._addBullet(this._players.p[playerIndex].cords.x, this._players.p[playerIndex].cords.y, this._players.p[playerIndex].rotation);
+            this._addBullet(this._players[playerIndex].cords.x, this._players[playerIndex].cords.y, this._players[playerIndex].rotation);
         }
 
         let keyLength = data.keyboard.length;
         for(let i=0;i<keyLength;i++) {
-            let keyID = data.keyboard[i].key;
+            let keyID = data.keyboard[i].k;
 
             switch(keyID) {
                 case 0:
-                    this._players.p[playerIndex].cords.y-=this._players.p[playerIndex].speed;
+                    if(this._players[playerIndex].cords.y > 30) {
+                        this._players[playerIndex].cords.y-=this._players[playerIndex].speed;
+                    }
                     break;
                 case 1:
-                    this._players.p[playerIndex].cords.y+=this._players.p[playerIndex].speed;
+                    if(this._players[playerIndex].cords.y < this._gameHeight-30) {
+                        this._players[playerIndex].cords.y+=this._players[playerIndex].speed;
+                    }
                     break;
                 case 2:
-                    this._players.p[playerIndex].cords.x-=this._players.p[playerIndex].speed;
+                    if(this._players[playerIndex].cords.x > 30) {
+                        this._players[playerIndex].cords.x-=this._players[playerIndex].speed;
+                    }
                     break;
                 case 3:
-                    this._players.p[playerIndex].cords.x+=this._players.p[playerIndex].speed;
+                    if(this._players[playerIndex].cords.x < this._gameWidth-30) {
+                        this._players[playerIndex].cords.x+=this._players[playerIndex].speed;
+                    }
                     break;
             }
+        }
+    }
+
+    _joystickMove(id, angle) {
+        let vx = Math.cos(angle)*this._players[id].speed;
+        let vy = Math.sin(angle)*this._players[id].speed;
+
+        if(this._players[id].cords.y>10&&vy<0||this._players[id].cords.y<790&&vy>0) {
+            this._players[id].cords.y += vy;
+        }
+        
+        if(this._players[id].cords.x>20&&vx<0||this._players[id].cords.x<990&&vx>0) {
+            this._players[id].cords.x += vx;
         }
     }
 
@@ -183,8 +223,8 @@ class RpsGame {
         
         let enemy = {
             "id": ++this._enemyID,
-            "speed":1,
-            "hp":2,
+            "speed":1.6,
+            "hp":1.5,
             "cords":{
                 "x": x,
                 "y": y
@@ -202,32 +242,31 @@ class RpsGame {
             let distanceToPlayers = [];
             
             for(let y=0;y<this._playersLength;y++) {
-                //if(this._players.p[y].hp>0) {
-                    let dx = this._enemies[i].cords.x - this._players.p[y].cords.x;
-                    let dy = this._enemies[i].cords.y - this._players.p[y].cords.y;
-                    let distance = Math.sqrt(dx * dx + dy * dy);
+                let dx = this._enemies[i].cords.x - this._players[y].cords.x;
+                let dy = this._enemies[i].cords.y - this._players[y].cords.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
 
-                    if(this._players.p[y].hp<0) {
-                        distance = Infinity;
-                    }
-    
-                    distanceToPlayers.push(distance);
-                //}
+                if(this._players[y].hp<0) {
+                    distance = Infinity;
+                }
+
+                distanceToPlayers.push(distance);
             }
 
 
             //its not best place to check that, but idk
             let a = true;
             for(let z=0;z<this._playersLength;z++) {
-                if(this._players.p[z].hp>0) {
+                if(this._players[z].hp>0) {
                     a = false;
                 }
             }
 
             if(a) {
                 this._gameOver();
+                break;
             }
-            //^^^^
+            //^^^^^
 
 
             let smallestDistance = Math.min(...distanceToPlayers);
@@ -235,11 +274,10 @@ class RpsGame {
             let distance = smallestDistance;
 
             if(distance > 45) {
-                let ix = (this._enemies[i].cords.x - this._players.p[playerID].cords.x) / distance;
-                let iy = (this._enemies[i].cords.y - this._players.p[playerID].cords.y) / distance;
+                let ix = (this._enemies[i].cords.x - this._players[playerID].cords.x) / distance;
+                let iy = (this._enemies[i].cords.y - this._players[playerID].cords.y) / distance;
 
-                //this._enemies[i].direction = Math.PI * ix * iy * 360;
-                //this._enemies[i].direction = Math.atan2(ix,iy)*180/Math.PI;
+                //calc direction
                 this._enemies[i].direction = Math.atan2(ix,iy);
 
                 this._enemies[i].cords.x -= ix * this._enemies[i].speed;
@@ -251,22 +289,22 @@ class RpsGame {
                     this._enemies[i].reload=false;
                     setTimeout(function() {
                         if(_this._enemies[i]!=null) {
-                            let dx = _this._enemies[i].cords.x - _this._players.p[playerID].cords.x;
-                            let dy = _this._enemies[i].cords.y - _this._players.p[playerID].cords.y;
+                            let dx = _this._enemies[i].cords.x - _this._players[playerID].cords.x;
+                            let dy = _this._enemies[i].cords.y - _this._players[playerID].cords.y;
                             let newDistance = Math.sqrt(dx * dx + dy * dy);
         
                             if(newDistance < 50) {
-                                _this._players.p[playerID].hp--;
+                                _this._players[playerID].hp--;
                             }
+
+                            _this._enemies[i].reload=true;
                         }
-                        _this._enemies[i].reload=true;
-                    }, 300);
+                    }, 400);
                 }
-                
             }
             
 
-            //kolizja zombie z innymi zombie
+            //Zombie collison
             for(let j=0;j<enemiesLength;j++) {
                 let dx = this._enemies[i].cords.x - this._enemies[j].cords.x;
                 let dy = this._enemies[i].cords.y - this._enemies[j].cords.y;
@@ -283,15 +321,15 @@ class RpsGame {
                 }
             }
 
-            /*if(this._players.p[playerID].cords.y>this._enemies[i].cords.y) {
+            /*if(this._players[playerID].cords.y>this._enemies[i].cords.y) {
                 this._enemies[i].cords.y+=this._enemies[i].speed;
-            } else if(this._players.p[playerID].cords.y<this._enemies[i].cords.y) {
+            } else if(this._players[playerID].cords.y<this._enemies[i].cords.y) {
                 this._enemies[i].cords.y-=this._enemies[i].speed;
             }
 
-            if(this._players.p[playerID].cords.x>this._enemies[i].cords.x) {
+            if(this._players[playerID].cords.x>this._enemies[i].cords.x) {
                 this._enemies[i].cords.x+=this._enemies[i].speed;
-            } else if (this._players.p[playerID].cords.x<this._enemies[i].cords.x) {
+            } else if (this._players[playerID].cords.x<this._enemies[i].cords.x) {
                 this._enemies[i].cords.x-=this._enemies[i].speed;
             }*/
         }
@@ -305,7 +343,7 @@ class RpsGame {
                 "x": x,
                 "y": y
             },
-            "direction": rotation
+            "direction": rotation  //this._players[i].rotation?
         };
         this._bullets.push(bullet);
     }
@@ -358,8 +396,8 @@ class RpsGame {
             }
 
 
-            //let ix = (this._enemies[i].cords.x - this._players.p[playerID].cords.x) / distance;
-            //let iy = (this._enemies[i].cords.y - this._players.p[playerID].cords.y) / distance;
+            //let ix = (this._enemies[i].cords.x - this._players[playerID].cords.x) / distance;
+            //let iy = (this._enemies[i].cords.y - this._players[playerID].cords.y) / distance;
 
             //this._enemies[i].direction = Math.atan2(ix,iy);
 
@@ -380,18 +418,18 @@ class RpsGame {
                 _this._moveBullets();
                 _this._sendToPlayers();
             }
-        },16);
+        }, 16);
 
 
         var interval;
         var duration = 500;
         function appear() {
-            if(duration>70) {
+            if(duration>320) {
                 duration -= 3;
             }
-            
-            //console.log(duration);
+
             _this._addEnemy();
+
             interval = setInterval(function () {
                 clearInterval(interval); //clear
                 if(_this._game) {
@@ -405,8 +443,29 @@ class RpsGame {
     
     _gameOver() {
         this._game = false;
-        this._players.p.forEach((player) => {
+        this._players.forEach((player) => {
             player.sock.emit('gameOver', 1);
+        });
+
+
+        
+        let url = ``;
+
+        http.get(url, (resp) => {
+        let data = '';
+
+        // A chunk of data has been recieved.
+        resp.on('data', (chunk) => {
+            data += chunk;
+        });
+
+        // The whole response has been received. Print out the result.
+        resp.on('end', () => {
+            console.log(data);
+        });
+
+        }).on("error", (err) => {
+            console.log("Error: " + err.message);
         });
     }
 }
