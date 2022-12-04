@@ -54,22 +54,24 @@ server.listen(PORT, () => {
 });
 
 
-
+const url = false;
 
 function getRanking() {
-    http.get(/* URL goes here */ url, (resp) => {
-        let data = '';
-
-        resp.on('data', (chunk) => {
-            data += chunk;
+    if(url) {
+        http.get(url, (resp) => {
+            let data = '';
+    
+            resp.on('data', (chunk) => {
+                data += chunk;
+            });
+    
+            resp.on('end', () => {
+                //console.log(data);
+                let rankingJSON = data;
+                io.emit('ranking', rankingJSON);
+            });
+        }).on("error", (err) => {
+            console.log("Error: " + err.message);
         });
-
-        resp.on('end', () => {
-            //console.log(data);
-            let rankingJSON = data;
-            io.emit('ranking', rankingJSON);
-        });
-    }).on("error", (err) => {
-        console.log("Error: " + err.message);
-    });
+    }
 }
